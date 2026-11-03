@@ -657,12 +657,12 @@ function SectionCard({ title, blocks }: { title: string; blocks: Block[] }) {
           >
             {copied ? (
               <>
-                <CheckIcon className="h-3.5 w-3.5 text-emerald-400" />
+                <CheckIcon className="h-4 w-4 text-emerald-400" />
                 <span className="text-emerald-400 font-medium">Copied!</span>
               </>
             ) : (
               <>
-                <CopyIcon className="h-3.5 w-3.5 text-slate-400" />
+                <CopyIcon className="h-4 w-4 text-slate-400" />
                 <span>Copy section</span>
               </>
             )}
@@ -679,7 +679,7 @@ function SectionCard({ title, blocks }: { title: string; blocks: Block[] }) {
             className="flex items-center gap-1.5 rounded-lg border border-white/[0.10] bg-white/[0.05] px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all hover:bg-white/[0.12] hover:text-white"
           >
             <ChevronDownIcon
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
+              className={`h-4 w-4 transition-transform duration-200 ${
                 isCollapsed ? '-rotate-90 text-slate-400' : 'rotate-0 text-indigo-400'
               }`}
             />
@@ -1064,12 +1064,12 @@ export function CodeBlock({
           >
             {copied ? (
               <>
-                <CheckIcon className="h-3 w-3 text-emerald-400" />
+                <CheckIcon className="h-3.5 w-3.5 text-emerald-400" />
                 <span className="text-emerald-400 text-[11px]">Copied</span>
               </>
             ) : (
               <>
-                <CopyIcon className="h-3 w-3" />
+                <CopyIcon className="h-3.5 w-3.5" />
                 <span className="text-[11px]">Copy</span>
               </>
             )}
@@ -1124,12 +1124,12 @@ export function CodeBlock({
           >
             {copied ? (
               <>
-                <CheckIcon className="h-3.5 w-3.5 text-emerald-400" />
+                <CheckIcon className="h-4 w-4 text-emerald-400" />
                 <span className="text-emerald-400 font-medium">Copied!</span>
               </>
             ) : (
               <>
-                <CopyIcon className="h-3.5 w-3.5 text-slate-400" />
+                <CopyIcon className="h-4 w-4 text-slate-400" />
                 <span>Copy code</span>
               </>
             )}
@@ -1146,7 +1146,7 @@ export function CodeBlock({
             className="flex items-center gap-1.5 rounded-lg border border-white/[0.10] bg-white/[0.05] px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all hover:bg-white/[0.12] hover:text-white"
           >
             <ChevronDownIcon
-              className={`h-3.5 w-3.5 transition-transform duration-200 ${
+              className={`h-4 w-4 transition-transform duration-200 ${
                 isCollapsed ? '-rotate-90 text-slate-400' : 'rotate-0 text-indigo-400'
               }`}
             />
@@ -1192,12 +1192,12 @@ export function CopyMessageButton({ text }: { text: string }) {
     >
       {copied ? (
         <>
-          <CheckIcon className="h-3.5 w-3.5 text-emerald-400" />
+          <CheckIcon className="h-4 w-4 text-emerald-400" />
           <span className="text-emerald-400 font-medium text-[11px]">Copied</span>
         </>
       ) : (
         <>
-          <CopyIcon className="h-3.5 w-3.5" />
+          <CopyIcon className="h-4 w-4" />
           <span className="text-[11px]">Copy</span>
         </>
       )}

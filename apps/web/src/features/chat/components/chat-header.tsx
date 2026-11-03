@@ -55,7 +55,7 @@ export function ChatHeader({
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-surface-2/80 text-slate-200 hover:bg-white/[0.08] hover:text-white lg:hidden transition-colors"
               title="Toggle sidebar"
             >
-              <MenuIcon className="h-4.5 w-4.5" />
+              <MenuIcon className="h-5 w-5" />
             </button>
           ) : null}
 
@@ -75,7 +75,7 @@ export function ChatHeader({
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-surface-2/80 p-1 shadow-inner backdrop-blur">
             <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-text-muted">
-              <SparklesIcon className="h-3.5 w-3.5 text-indigo-400" />
+              <SparklesIcon className="h-4 w-4 text-indigo-400" />
               <span className="hidden sm:inline">Model:</span>
             </div>
 
@@ -113,7 +113,8 @@ export function ChatHeader({
 
           {activeChat && onMessageSearchChange ? (
             isSearchActive ? (
-              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.1] bg-surface px-2 py-0.5">
+              <div className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-surface px-2.5 py-1">
+                <SearchIcon className="h-4 w-4 text-text-muted shrink-0" />
                 <Input
                   value={messageSearchQuery}
                   onChange={(e) => onMessageSearchChange(e.target.value)}
@@ -130,19 +131,19 @@ export function ChatHeader({
                   className="text-text-muted hover:text-white"
                   title="Clear search"
                 >
-                  <CloseIcon className="h-3.5 w-3.5" />
+                  <CloseIcon className="h-4 w-4" />
                 </button>
               </div>
             ) : (
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="icon"
                 onClick={() => setIsSearchActive(true)}
-                className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+                className="h-9 w-9 rounded-xl border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white hover:bg-white/[0.08] transition-colors"
                 title="Search in conversation"
               >
-                <SearchIcon className="h-3.5 w-3.5" />
+                <SearchIcon className="h-5 w-5" />
               </Button>
             )
           ) : null}
@@ -151,12 +152,12 @@ export function ChatHeader({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={onOpenPromptModal}
-              className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+              className="h-9 w-9 rounded-xl border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white hover:bg-white/[0.08] transition-colors"
               title="Custom Instructions (System Prompt)"
             >
-              <SettingsIcon className="h-3.5 w-3.5" />
+              <SettingsIcon className="h-5 w-5" />
             </Button>
           ) : null}
 
@@ -164,12 +165,12 @@ export function ChatHeader({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={onExportChat}
-              className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+              className="h-9 w-9 rounded-xl border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white hover:bg-white/[0.08] transition-colors"
               title="Export conversation to Markdown"
             >
-              <DownloadIcon className="h-3.5 w-3.5" />
+              <DownloadIcon className="h-5 w-5" />
             </Button>
           ) : null}
         </div>

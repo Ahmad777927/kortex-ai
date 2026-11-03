@@ -114,9 +114,9 @@ export function MessageList({
                   onClick={() => onSelectPrompt?.(starter.prompt)}
                   className={`group relative flex flex-col items-start rounded-2xl border bg-surface/60 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg backdrop-blur ${starter.accent}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06]">
-                      <Icon className="h-4 w-4" />
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-slate-200 group-hover:text-white transition-colors">
+                      <Icon className="h-4.5 w-4.5" />
                     </span>
                     <span className="text-xs font-semibold text-white group-hover:text-indigo-300 transition-colors">
                       {starter.title}

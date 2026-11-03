@@ -27,6 +27,9 @@ const config: Config = {
         soft: '0 18px 45px rgba(0, 0, 0, 0.45)',
         glow: '0 0 25px -5px rgba(99, 102, 241, 0.35)',
       },
+      spacing: {
+        4.5: '1.125rem',
+      },
     },
   },
   plugins: [],

@@ -109,7 +109,7 @@ export function MessageComposer({
                     onClick={onStop}
                     className="h-10 rounded-full px-4 gap-2 border border-red-500/50 bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-all shadow-md shadow-red-500/20"
                   >
-                    <StopIcon className="h-4 w-4 text-red-400" />
+                    <StopIcon className="h-4.5 w-4.5 text-red-400" />
                     <span className="text-xs font-semibold">Stop</span>
                   </Button>
                 ) : (
@@ -123,7 +123,7 @@ export function MessageComposer({
                         disabled={isMessagesLoading}
                         className="h-9 gap-1.5 rounded-full border-white/[0.08] bg-surface/80 px-3.5 text-xs font-medium text-slate-300 hover:bg-surface hover:text-white"
                       >
-                        <RefreshIcon className="h-3.5 w-3.5" />
+                        <RefreshIcon className="h-4 w-4" />
                         <span>Regenerate</span>
                       </Button>
                     ) : null}

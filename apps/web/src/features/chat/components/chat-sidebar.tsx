@@ -150,7 +150,7 @@ export function ChatSidebar({
               className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-white/[0.08] hover:text-white lg:hidden transition-colors"
               title="Close sidebar"
             >
-              <CloseIcon className="h-4 w-4" />
+              <CloseIcon className="h-4.5 w-4.5" />
             </button>
           ) : null}
         </div>
@@ -164,7 +164,7 @@ export function ChatSidebar({
           disabled={isCreatingChat}
           className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 py-2.5 px-4 text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:from-indigo-400 hover:to-purple-500 hover:shadow-indigo-500/35 active:scale-[0.98] disabled:opacity-50"
         >
-          <PlusIcon className="h-4 w-4 transition-transform group-hover:rotate-90 duration-200" />
+          <PlusIcon className="h-4.5 w-4.5 transition-transform group-hover:rotate-90 duration-200" />
           <span>{isCreatingChat ? 'Creating…' : 'New Conversation'}</span>
         </button>
       </div>
@@ -185,12 +185,12 @@ export function ChatSidebar({
 
           <div className="mt-2.5 space-y-2">
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
               <Input
                 value={chatSearchQuery}
                 onChange={(event) => setChatSearchQuery(event.target.value)}
                 placeholder="Search chats..."
-                className="h-8.5 rounded-xl border-white/[0.08] bg-surface-2/60 pl-8 text-xs text-white placeholder:text-text-muted/60 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:border-white/25"
+                className="h-8.5 rounded-xl border-white/[0.08] bg-surface-2/60 pl-9 text-xs text-white placeholder:text-text-muted/60 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:border-white/25"
               />
             </div>
 
@@ -248,7 +248,7 @@ export function ChatSidebar({
                         >
                           <ChatBubbleIcon
                             className={cn(
-                              'h-4 w-4 shrink-0 transition-colors',
+                              'h-4.5 w-4.5 shrink-0 transition-colors',
                               isActive ? 'text-indigo-400' : 'text-text-muted group-hover:text-slate-200',
                             )}
                           />
@@ -268,10 +268,10 @@ export function ChatSidebar({
                             type="button"
                             disabled={isDeletingChatId === chat.id}
                             onClick={() => onDeleteChat(chat.id)}
-                            className="opacity-0 group-hover:opacity-100 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-red-500/20 hover:text-red-400 transition-all"
+                            className="opacity-0 group-hover:opacity-100 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-red-500/20 hover:text-red-400 transition-all"
                             title="Delete Chat"
                           >
-                            <TrashIcon className="h-3.5 w-3.5" />
+                            <TrashIcon className="h-4 w-4" />
                           </button>
                         </div>
                       </motion.li>
@@ -287,7 +287,7 @@ export function ChatSidebar({
         <section className="border-t border-white/[0.06] pt-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
-              <DocumentIcon className="h-3.5 w-3.5 text-indigo-400" />
+              <DocumentIcon className="h-4 w-4 text-indigo-400" />
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
                 Knowledge Docs
               </p>
@@ -297,7 +297,7 @@ export function ChatSidebar({
               onClick={() => onLoadDocuments()}
               className="flex items-center gap-1 text-[11px] text-text-muted hover:text-white transition-colors"
             >
-              <RefreshIcon className="h-3 w-3" />
+              <RefreshIcon className="h-3.5 w-3.5" />
               <span>Refresh</span>
             </button>
           </div>
@@ -339,7 +339,7 @@ export function ChatSidebar({
               size="sm"
               className="mt-2.5 h-8 w-full gap-1.5 rounded-xl bg-white/[0.08] text-xs font-medium text-white hover:bg-white/[0.15]"
             >
-              <UploadCloudIcon className="h-3.5 w-3.5" />
+              <UploadCloudIcon className="h-4 w-4" />
               <span>{isUploadingDocument ? 'Indexing…' : 'Upload + Index'}</span>
             </Button>
           </form>
@@ -412,10 +412,10 @@ export function ChatSidebar({
                           size="sm"
                           onClick={() => onDeleteDocument(document.id)}
                           disabled={isDeletingDocumentId === document.id}
-                          className="h-6 rounded-lg px-2 text-[10px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 ml-auto"
+                          className="h-6.5 rounded-lg px-2 text-[10px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 ml-auto"
                           title="Delete document"
                         >
-                          <TrashIcon className="h-3 w-3" />
+                          <TrashIcon className="h-3.5 w-3.5" />
                         </Button>
                       ) : null}
                     </div>
@@ -445,9 +445,9 @@ export function ChatSidebar({
             type="button"
             onClick={onLogout}
             title="Log Out"
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted hover:bg-white/[0.08] hover:text-red-400 transition-colors"
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl text-text-muted hover:bg-white/[0.08] hover:text-red-400 transition-colors"
           >
-            <LogoutIcon className="h-4 w-4" />
+            <LogoutIcon className="h-4.5 w-4.5" />
           </button>
         </div>
       </div>
