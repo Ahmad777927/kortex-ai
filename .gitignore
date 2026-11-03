@@ -1,5 +1,8 @@
 # dependencies
 node_modules
+.pnpm-home
+.pnpm-store
+.corepack
 
 # build outputs
 .next
@@ -23,7 +26,13 @@ yarn-debug.log*
 .DS_Store
 Thumbs.db
 
+# databases / local storage
+*.db
+*.sqlite
+ai_chat.db
+
 # uploads/temp
 uploads
 tmp
+
 
