@@ -1,0 +1,29 @@
+# dependencies
+node_modules
+
+# build outputs
+.next
+dist
+build
+coverage
+.turbo
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uploads/temp
+uploads
+tmp
+
