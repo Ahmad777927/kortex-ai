@@ -130,8 +130,9 @@ export function MessageComposer({
 
                     <Button
                       type="submit"
+                      size="icon"
                       disabled={isMessagesLoading || composer.trim().length === 0}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 via-indigo-600 to-purple-600 p-0 text-white shadow-md shadow-indigo-500/30 transition-all hover:scale-105 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-purple-600 p-0 text-white shadow-md shadow-indigo-500/30 transition-all hover:scale-105 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
                       title="Send message"
                     >
                       <SendIcon className="h-5 w-5 ml-0.5 text-white" />
