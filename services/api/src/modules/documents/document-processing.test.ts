@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { deflateSync } from 'node:zlib';
 import {
   chunkExtractedText,
+  extractPdfTextFromBuffer,
   DocumentProcessingError,
 } from './document-processing.js';
 
@@ -58,3 +60,26 @@ test('chunkExtractedText rejects empty normalized text', () => {
     },
   );
 });
+
+test('extractPdfTextFromBuffer extracts text from compressed FlateDecode PDF stream', () => {
+  const streamBody = 'BT /F1 12 Tf (Architecture Guidelines 2026) Tj ET';
+  const compressed = deflateSync(Buffer.from(streamBody));
+  const pdfBuffer = Buffer.concat([
+    Buffer.from('%PDF-1.4\n1 0 obj\n<< /Length ' + compressed.length + ' /Filter /FlateDecode >>\nstream\r\n'),
+    compressed,
+    Buffer.from('\r\nendstream\nendobj\n%%EOF'),
+  ]);
+
+  const extracted = extractPdfTextFromBuffer(pdfBuffer);
+  assert.equal(extracted, 'Architecture Guidelines 2026');
+});
+
+test('extractPdfTextFromBuffer extracts text from uncompressed TJ array', () => {
+  const pdfBuffer = Buffer.from(
+    '%PDF-1.4\n1 0 obj\n<< /Length 60 >>\nstream\r\nBT [(Introduction) -200 ( to AI Systems)] TJ ET\r\nendstream\nendobj\n%%EOF',
+  );
+
+  const extracted = extractPdfTextFromBuffer(pdfBuffer);
+  assert.equal(extracted, 'Introduction to AI Systems');
+});
+

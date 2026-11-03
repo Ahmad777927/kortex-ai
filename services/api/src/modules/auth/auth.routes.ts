@@ -59,10 +59,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
+      const passwordHash = await hashPassword(parsed.data.password);
       const user = await UserModel.create({
         name: parsed.data.name,
         email,
-        passwordHash: hashPassword(parsed.data.password),
+        passwordHash,
         role: 'user',
       });
 
@@ -102,7 +103,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const email = parsed.data.email.toLowerCase();
     const user = await UserModel.findOne({ email });
 
-    if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+    const isPasswordValid = user ? await verifyPassword(parsed.data.password, user.passwordHash) : false;
+
+    if (!user || !isPasswordValid) {
       return reply.status(401).send({
         error: 'InvalidCredentials',
         message: 'Invalid email or password',

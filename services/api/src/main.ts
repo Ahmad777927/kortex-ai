@@ -11,7 +11,10 @@ import { retrievalRoutes } from './modules/retrieval/retrieval.routes.js';
 import { registerApiRateLimit } from './shared/http/rate-limit.js';
 import { registerObservability } from './shared/observability/metrics.js';
 
-const app = Fastify({ logger: true });
+const app = Fastify({
+  logger: true,
+  bodyLimit: Math.floor(env.MAX_FILE_SIZE_MB * 1024 * 1024 * 1.5),
+});
 
 registerObservability(app);
 registerApiRateLimit(app);

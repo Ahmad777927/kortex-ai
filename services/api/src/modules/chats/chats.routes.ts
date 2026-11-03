@@ -488,12 +488,11 @@ function convertToGeminiContents(messages: ChatMessage[]): {
   };
 }
 
-async function generateAssistantReply(
-  model: string,
+async function executeGenerateAssistantReply(
+  targetModel: string,
   messages: ChatMessage[],
 ): Promise<{ content: string; latencyMs: number }> {
   const startedAt = Date.now();
-  const targetModel = toGeminiModelName(model);
   const geminiPayload = convertToGeminiContents(messages);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${env.GEMINI_API_KEY}`;
@@ -537,6 +536,27 @@ async function generateAssistantReply(
     content: text,
     latencyMs: Date.now() - startedAt,
   };
+}
+
+async function generateAssistantReply(
+  model: string,
+  messages: ChatMessage[],
+): Promise<{ content: string; latencyMs: number }> {
+  const targetModel = toGeminiModelName(model);
+  const fallbackModel = toGeminiModelName(env.FALLBACK_MODEL);
+
+  try {
+    return await executeGenerateAssistantReply(targetModel, messages);
+  } catch (primaryError: unknown) {
+    if (targetModel !== fallbackModel) {
+      try {
+        return await executeGenerateAssistantReply(fallbackModel, messages);
+      } catch {
+        throw primaryError;
+      }
+    }
+    throw primaryError;
+  }
 }
 
 function deriveFallbackTitle(userPrompt: string): string {
@@ -608,14 +628,13 @@ async function generateChatTitle(model: string, userPrompt: string): Promise<str
   }
 }
 
-async function streamAssistantReply(
-  model: string,
+async function executeStreamAssistantReply(
+  targetModel: string,
   messages: ChatMessage[],
   onChunk: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<{ content: string; latencyMs: number }> {
   const startedAt = Date.now();
-  const targetModel = toGeminiModelName(model);
   const geminiPayload = convertToGeminiContents(messages);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?alt=sse&key=${env.GEMINI_API_KEY}`;
@@ -721,6 +740,35 @@ async function streamAssistantReply(
     content: accumulatedContent,
     latencyMs: Date.now() - startedAt,
   };
+}
+
+async function streamAssistantReply(
+  model: string,
+  messages: ChatMessage[],
+  onChunk: (delta: string) => void,
+  signal?: AbortSignal,
+): Promise<{ content: string; latencyMs: number }> {
+  const targetModel = toGeminiModelName(model);
+  const fallbackModel = toGeminiModelName(env.FALLBACK_MODEL);
+
+  let streamYieldedChunk = false;
+  const wrappedOnChunk = (delta: string) => {
+    streamYieldedChunk = true;
+    onChunk(delta);
+  };
+
+  try {
+    return await executeStreamAssistantReply(targetModel, messages, wrappedOnChunk, signal);
+  } catch (primaryError: unknown) {
+    if (!streamYieldedChunk && targetModel !== fallbackModel && !signal?.aborted) {
+      try {
+        return await executeStreamAssistantReply(fallbackModel, messages, onChunk, signal);
+      } catch {
+        throw primaryError;
+      }
+    }
+    throw primaryError;
+  }
 }
 
 export async function chatsRoutes(app: FastifyInstance): Promise<void> {
@@ -909,6 +957,55 @@ export async function chatsRoutes(app: FastifyInstance): Promise<void> {
     }
 
     chat.set('title', parsed.data.title);
+    await chat.save();
+
+    return reply.status(200).send({
+      chat: toChatResponse(chat),
+    });
+  });
+
+  app.put('/:chatId/system-prompt', async (request, reply) => {
+    const userId = getUserIdFromAuth(request.headers.authorization);
+    if (!userId) {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Missing or invalid authorization token',
+      });
+    }
+
+    const { chatId } = request.params as { chatId: string };
+    if (!isValidObjectId(chatId)) {
+      return reply.status(400).send({
+        error: 'ValidationError',
+        message: 'Invalid chatId',
+      });
+    }
+
+    const bodySchema = z.object({
+      systemPrompt: z.string().trim().max(4000).nullable().optional(),
+    });
+
+    const parsed = bodySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'ValidationError',
+        message: parsed.error.flatten(),
+      });
+    }
+
+    const chat = await ChatModel.findOne({
+      _id: new Types.ObjectId(chatId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!chat) {
+      return reply.status(404).send({
+        error: 'ChatNotFound',
+        message: 'Chat not found',
+      });
+    }
+
+    chat.set('systemPrompt', parsed.data.systemPrompt || null);
     await chat.save();
 
     return reply.status(200).send({

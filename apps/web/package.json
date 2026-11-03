@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test": "echo 'web tests not configured yet'",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { FastifyInstance } from 'fastify';
-import { isValidObjectId, Types } from 'mongoose';
+import { HydratedDocument, isValidObjectId, Types } from 'mongoose';
 import { z } from 'zod';
 import { requireAuthenticatedUserId } from '../auth/auth.service.js';
 import { ChatModel } from '../chats/chat.model.js';
@@ -41,6 +41,7 @@ const uploadDocumentSchema = z.object({
   mimeType: z.string().trim().min(1).max(120),
   chatId: z.string().trim().optional().nullable(),
   contentBase64: z.string().min(1),
+  autoIndex: z.coerce.boolean().default(true).optional(),
 });
 
 const allowedMimeTypes = new Set([
@@ -131,6 +132,70 @@ async function ensureChatAccess(userId: string, chatId: string): Promise<boolean
   return Boolean(chat);
 }
 
+async function processAndEmbedDocument(document: HydratedDocument<DocumentDocument>): Promise<{
+  chunksCreated: number;
+  embeddedChunks: number;
+}> {
+  document.status = 'processing';
+  document.error = null;
+  await document.save();
+
+  try {
+    const extractedText = await extractDocumentText(document);
+    const chunks = chunkExtractedText(extractedText, {
+      chunkSize: env.CHUNK_SIZE_CHARS,
+      overlap: env.CHUNK_OVERLAP_CHARS,
+      source: document.filename,
+    });
+
+    await ChunkModel.deleteMany({ documentId: document._id });
+
+    const batchSize = 12;
+    const embeddedChunksData = [];
+    let vectorsTotal = 0;
+
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      let vectors: number[][] = [];
+      try {
+        vectors = await embedTextsWithGemini(batch.map((c) => c.text));
+        vectorsTotal += vectors.filter((v) => Array.isArray(v) && v.length > 0).length;
+      } catch {
+        vectors = batch.map(() => []);
+      }
+
+      for (let j = 0; j < batch.length; j += 1) {
+        embeddedChunksData.push({
+          documentId: document._id,
+          userId: document.userId,
+          chatId: document.chatId,
+          text: batch[j]!.text,
+          embedding: vectors[j] ?? [],
+          metadata: batch[j]!.metadata,
+          createdAt: new Date(),
+        });
+      }
+    }
+
+    await ChunkModel.insertMany(embeddedChunksData);
+
+    document.status = 'ready';
+    document.error = null;
+    await document.save();
+
+    return {
+      chunksCreated: chunks.length,
+      embeddedChunks: vectorsTotal,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Processing failed';
+    document.status = 'failed';
+    document.error = message.slice(0, 1000);
+    await document.save();
+    throw error;
+  }
+}
+
 export async function documentsRoutes(app: FastifyInstance): Promise<void> {
   app.post('/upload', async (request, reply) => {
     const userId = getUserIdFromAuth(request.headers.authorization);
@@ -209,6 +274,22 @@ export async function documentsRoutes(app: FastifyInstance): Promise<void> {
       status: 'uploaded',
       error: null,
     });
+
+    if (parsed.data.autoIndex !== false) {
+      try {
+        const indexing = await processAndEmbedDocument(document);
+        return reply.status(201).send({
+          document: toDocumentResponse(document),
+          indexing,
+        });
+      } catch (indexingError: unknown) {
+        app.log.warn({ err: indexingError }, 'Auto-indexing error during upload');
+        return reply.status(201).send({
+          document: toDocumentResponse(document),
+          indexing: { error: 'Document saved but auto-indexing failed. You can retry indexing.' },
+        });
+      }
+    }
 
     return reply.status(201).send({
       document: toDocumentResponse(document),
@@ -542,6 +623,57 @@ export async function documentsRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.status(200).send({
       chunks: chunks.map(toChunkResponse),
+    });
+  });
+
+  app.delete('/:documentId', async (request, reply) => {
+    const userId = getUserIdFromAuth(request.headers.authorization);
+
+    if (!userId) {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Missing or invalid authorization token',
+      });
+    }
+
+    const { documentId } = request.params as { documentId: string };
+    if (!isValidObjectId(documentId)) {
+      return reply.status(400).send({
+        error: 'ValidationError',
+        message: 'Invalid documentId',
+      });
+    }
+
+    const docObjectId = new Types.ObjectId(documentId);
+    const document = await DocumentModel.findOne({
+      _id: docObjectId,
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!document) {
+      return reply.status(404).send({
+        error: 'DocumentNotFound',
+        message: 'Document not found',
+      });
+    }
+
+    try {
+      await unlink(document.storagePath);
+    } catch {
+      // Ignore if file was already removed
+    }
+
+    const [removedChunks] = await Promise.all([
+      ChunkModel.deleteMany({
+        documentId: docObjectId,
+        userId: new Types.ObjectId(userId),
+      }),
+      document.deleteOne(),
+    ]);
+
+    return reply.status(200).send({
+      deletedDocumentId: documentId,
+      removedChunks: removedChunks.deletedCount ?? 0,
     });
   });
 }

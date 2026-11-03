@@ -57,6 +57,8 @@ interface ChatSidebarProps {
   onPreviewChunks: (documentId: string) => void;
   onProcessDocument: (documentId: string) => void;
   onEmbedDocument: (documentId: string) => void;
+  onDeleteDocument?: (documentId: string) => void;
+  isDeletingDocumentId?: string | null;
   // Auth
   onLogout: () => void;
   // Mobile responsive
@@ -101,6 +103,8 @@ export function ChatSidebar({
   onPreviewChunks,
   onProcessDocument,
   onEmbedDocument,
+  onDeleteDocument,
+  isDeletingDocumentId,
   onLogout,
   onCloseMobile,
   formatChatTime,
@@ -400,6 +404,20 @@ export function ChatSidebar({
                       >
                         {isEmbedding ? 'Embedding…' : 'Embed'}
                       </Button>
+
+                      {onDeleteDocument ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteDocument(document.id)}
+                          disabled={isDeletingDocumentId === document.id}
+                          className="h-6 rounded-lg px-2 text-[10px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 ml-auto"
+                          title="Delete document"
+                        >
+                          <TrashIcon className="h-3 w-3" />
+                        </Button>
+                      ) : null}
                     </div>
                   </article>
                 );

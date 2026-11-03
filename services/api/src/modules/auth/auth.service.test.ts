@@ -46,10 +46,10 @@ test('requireAuthenticatedUserId accepts valid bearer token payload', () => {
   assert.equal(resolved, sub);
 });
 
-test('hashPassword and verifyPassword handle valid and invalid secrets', () => {
-  const hash = hashPassword('my-secret-password');
+test('hashPassword and verifyPassword handle valid and invalid secrets', async () => {
+  const hash = await hashPassword('my-secret-password');
 
-  assert.ok(verifyPassword('my-secret-password', hash));
-  assert.equal(verifyPassword('wrong-password', hash), false);
-  assert.equal(verifyPassword('my-secret-password', 'invalid-format-hash'), false);
+  assert.ok(await verifyPassword('my-secret-password', hash));
+  assert.equal(await verifyPassword('wrong-password', hash), false);
+  assert.equal(await verifyPassword('my-secret-password', 'invalid-format-hash'), false);
 });

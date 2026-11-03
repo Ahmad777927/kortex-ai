@@ -412,6 +412,17 @@ export const chatsApi = {
     );
   },
 
+  updateSystemPrompt(accessToken: string, chatId: string, systemPrompt: string | null) {
+    return request<CreateChatResponse>(
+      `/chats/${chatId}/system-prompt`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ systemPrompt }),
+      },
+      accessToken,
+    );
+  },
+
   delete(accessToken: string, chatId: string) {
     return request<DeleteChatResponse>(
       `/chats/${chatId}`,
@@ -506,6 +517,16 @@ export const documentsApi = {
       `/documents/${documentId}/chunks?limit=${limit}`,
       {
         method: 'GET',
+      },
+      accessToken,
+    );
+  },
+
+  delete(accessToken: string, documentId: string) {
+    return request<{ deletedDocumentId: string; removedChunks: number }>(
+      `/documents/${documentId}`,
+      {
+        method: 'DELETE',
       },
       accessToken,
     );

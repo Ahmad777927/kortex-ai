@@ -264,6 +264,12 @@ export function ChatWorkspace() {
   const [pendingDeleteChat, setPendingDeleteChat] = useState<ApiChat | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  const [isDeletingDocumentId, setIsDeletingDocumentId] = useState<string | null>(null);
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState('');
+  const [isSavingSystemPrompt, setIsSavingSystemPrompt] = useState(false);
+
   const messagesBottomRef = useRef<HTMLDivElement | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
   const toastCounterRef = useRef(0);
@@ -273,6 +279,12 @@ export function ChatWorkspace() {
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
     [chats, selectedChatId],
   );
+
+  const visibleMessages = useMemo(() => {
+    const q = messageSearchQuery.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter((m) => m.content.toLowerCase().includes(q));
+  }, [messages, messageSearchQuery]);
 
   const chatModelFilters = useMemo(() => {
     const models = new Set(chats.map((chat) => chat.model));
@@ -1280,6 +1292,81 @@ export function ChatWorkspace() {
     }
   }
 
+  async function handleDeleteDocument(documentId: string) {
+    if (!token) {
+      return;
+    }
+
+    setIsDeletingDocumentId(documentId);
+    setError(null);
+
+    try {
+      await documentsApi.delete(token, documentId);
+      pushToast('success', 'Document deleted successfully.');
+      if (previewDocumentId === documentId) {
+        setPreviewDocumentId(null);
+        setPreviewChunks([]);
+      }
+      await loadDocuments(token);
+    } catch (deleteError) {
+      const errorMessage = getErrorMessage(deleteError, 'Failed to delete document');
+      setError(errorMessage);
+      pushToast('error', errorMessage);
+    } finally {
+      setIsDeletingDocumentId(null);
+    }
+  }
+
+  function handleExportChat() {
+    if (!activeChat || messages.length === 0) {
+      pushToast('info', 'No messages to export');
+      return;
+    }
+
+    const title = activeChat.title || 'Conversation';
+    const lines = [
+      `# ${title}`,
+      `*Model: ${activeChat.model}*`,
+      `*Exported: ${new Date().toLocaleString()}*`,
+      '',
+      '---',
+      '',
+    ];
+
+    for (const msg of messages) {
+      const roleName = msg.role === 'user' ? '### User' : '### Assistant';
+      lines.push(roleName, '', msg.content, '', '---', '');
+    }
+
+    const markdownText = lines.join('\n');
+    const blob = new Blob([markdownText], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    pushToast('success', 'Chat exported as Markdown');
+  }
+
+  async function handleSaveSystemPrompt() {
+    if (!token || !selectedChatId) return;
+    setIsSavingSystemPrompt(true);
+    try {
+      const res = await chatsApi.updateSystemPrompt(token, selectedChatId, customSystemPrompt.trim() || null);
+      setChats((prev) => prev.map((c) => (c.id === selectedChatId ? res.chat : c)));
+      setIsPromptModalOpen(false);
+      pushToast('success', 'Custom instructions updated');
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to update custom instructions');
+      pushToast('error', msg);
+    } finally {
+      setIsSavingSystemPrompt(false);
+    }
+  }
+
   function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
     setDocumentsNotice(null);
     setSelectedFile(event.target.files?.[0] ?? null);
@@ -1401,6 +1488,8 @@ export function ChatWorkspace() {
               onPreviewChunks={handlePreviewChunks}
               onProcessDocument={handleProcessDocument}
               onEmbedDocument={handleEmbedDocument}
+              onDeleteDocument={handleDeleteDocument}
+              isDeletingDocumentId={isDeletingDocumentId}
               onLogout={handleLogout}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
               formatChatTime={formatChatTime}
@@ -1422,6 +1511,13 @@ export function ChatWorkspace() {
               isRagEnabled={isRagEnabled}
               onSwitchModel={handleSwitchModel}
               onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+              onExportChat={handleExportChat}
+              onOpenPromptModal={() => {
+                setCustomSystemPrompt(activeChat?.systemPrompt ?? '');
+                setIsPromptModalOpen(true);
+              }}
+              messageSearchQuery={messageSearchQuery}
+              onMessageSearchChange={setMessageSearchQuery}
             />
 
             <DocumentPreviewBanner
@@ -1435,7 +1531,7 @@ export function ChatWorkspace() {
             />
 
             <MessageList
-              messages={messages}
+              messages={visibleMessages}
               isMessagesLoading={isMessagesLoading}
               isNoChatSelected={isNoChatSelected}
               messagesBottomRef={messagesBottomRef}
@@ -1503,6 +1599,44 @@ export function ChatWorkspace() {
                 </motion.div>
               ))}
             </AnimatePresence>
+          </div>
+        ) : null}
+
+        {isPromptModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-white/[0.1] bg-[#0E1424] p-6 shadow-2xl">
+              <h3 className="text-lg font-semibold text-white">Custom Instructions (System Prompt)</h3>
+              <p className="mt-1 text-xs text-text-muted">
+                Define how the assistant should behave, its domain expertise, tone, or specific formatting rules for this conversation.
+              </p>
+              <textarea
+                value={customSystemPrompt}
+                onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                placeholder="e.g. You are an expert software architect. Be direct, concise, and provide complete runnable code."
+                rows={5}
+                className="mt-4 w-full rounded-xl border border-white/[0.1] bg-surface-2 p-3 text-xs text-white placeholder:text-text-muted focus:border-indigo-400 focus:outline-none"
+              />
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPromptModalOpen(false)}
+                  className="border-white/[0.1] text-xs text-slate-300 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveSystemPrompt}
+                  disabled={isSavingSystemPrompt}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-xs text-white"
+                >
+                  {isSavingSystemPrompt ? 'Saving…' : 'Save Instructions'}
+                </Button>
+              </div>
+            </div>
           </div>
         ) : null}
       </section>

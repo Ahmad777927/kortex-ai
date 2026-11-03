@@ -37,16 +37,17 @@ Build a modern AI chat assistant that supports:
 
 ### Backend
 
-- Next.js API routes
+- Fastify microservice (`services/api`) + Next.js App Router API proxy (`apps/web`)
 - Node.js + TypeScript
 - Zod for request validation
+- Async non-blocking password hashing (scrypt) & HMAC token authentication
 
 ### AI Runtime
 
-- Ollama local server (`http://localhost:11434`)
-- Chat model: `qwen3:8b`
-- Fallback model: `lfm3:1.7b`
-- Embeddings model: `embeddinggemma`
+- Google Gemini REST API
+- Primary Chat Model: `gemini-3.5-flash-lite`
+- Automatic Fallback Model: `gemini-3.5-flash` (triggers on 429 rate limit or 503 overload)
+- Embeddings Model: `gemini-embedding-001` (768 dimensions)
 
 ### Database
 

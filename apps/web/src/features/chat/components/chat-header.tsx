@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
 import { DropdownSelect } from '../../../components/ui/dropdown-select';
-import { SparklesIcon, MenuIcon } from '../../../components/chat/icons';
+import { SparklesIcon, MenuIcon, DownloadIcon, SettingsIcon, SearchIcon, CloseIcon } from '../../../components/chat/icons';
 import type { ApiChat, ApiAvailableModel } from '../types';
 
 interface ChatHeaderProps {
@@ -17,6 +19,10 @@ interface ChatHeaderProps {
   isRagEnabled: boolean;
   onSwitchModel: (nextModel: string) => void;
   onToggleMobileSidebar?: () => void;
+  onExportChat?: () => void;
+  onOpenPromptModal?: () => void;
+  messageSearchQuery?: string;
+  onMessageSearchChange?: (query: string) => void;
 }
 
 export function ChatHeader({
@@ -30,7 +36,12 @@ export function ChatHeader({
   isRagEnabled,
   onSwitchModel,
   onToggleMobileSidebar,
+  onExportChat,
+  onOpenPromptModal,
+  messageSearchQuery = '',
+  onMessageSearchChange,
 }: ChatHeaderProps) {
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const currentModelName = activeChat?.model ?? selectedModel;
 
   return (
@@ -99,6 +110,68 @@ export function ChatHeader({
           >
             RAG: {isRagEnabled ? 'Active' : 'Off'}
           </Badge>
+
+          {activeChat && onMessageSearchChange ? (
+            isSearchActive ? (
+              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.1] bg-surface px-2 py-0.5">
+                <Input
+                  value={messageSearchQuery}
+                  onChange={(e) => onMessageSearchChange(e.target.value)}
+                  placeholder="Filter messages…"
+                  className="h-6 w-32 md:w-44 text-xs border-0 bg-transparent p-0 focus-visible:ring-0 text-white"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSearchActive(false);
+                    onMessageSearchChange('');
+                  }}
+                  className="text-text-muted hover:text-white"
+                  title="Clear search"
+                >
+                  <CloseIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSearchActive(true)}
+                className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+                title="Search in conversation"
+              >
+                <SearchIcon className="h-3.5 w-3.5" />
+              </Button>
+            )
+          ) : null}
+
+          {activeChat && onOpenPromptModal ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenPromptModal}
+              className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+              title="Custom Instructions (System Prompt)"
+            >
+              <SettingsIcon className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+
+          {activeChat && onExportChat ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onExportChat}
+              className="h-8 w-8 p-0 rounded-lg border-white/[0.08] bg-surface-2/80 text-text-muted hover:text-white"
+              title="Export conversation to Markdown"
+            >
+              <DownloadIcon className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
         </div>
       </div>
     </header>

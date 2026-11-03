@@ -1,6 +1,9 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 import { isValidObjectId } from 'mongoose';
 import { env } from '../../shared/config/env.js';
+
+const scryptAsync = promisify(scrypt);
 
 export interface AuthTokenPayload {
   sub: string;
@@ -65,23 +68,21 @@ export function verifyAuthToken(token: string): AuthTokenPayload {
   return parsed;
 }
 
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
-  const digest = scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${digest}`;
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${derivedKey.toString('hex')}`;
 }
 
-export function verifyPassword(password: string, storedHash: string): boolean {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   const [salt, originalDigest] = storedHash.split(':');
 
   if (!salt || !originalDigest) {
     return false;
   }
 
-  const computedDigest = scryptSync(password, salt, 64).toString('hex');
-
+  const computedBuffer = (await scryptAsync(password, salt, 64)) as Buffer;
   const originalBuffer = Buffer.from(originalDigest, 'hex');
-  const computedBuffer = Buffer.from(computedDigest, 'hex');
 
   if (originalBuffer.length !== computedBuffer.length) {
     return false;

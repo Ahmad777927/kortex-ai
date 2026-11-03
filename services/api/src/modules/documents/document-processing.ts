@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { inflateRawSync, inflateSync } from 'node:zlib';
 import { DocumentDocument } from './document.model.js';
 
 export class DocumentProcessingError extends Error {
@@ -36,52 +37,165 @@ function normalizeText(input: string): string {
     .trim();
 }
 
-function decodePdfTextToken(value: string): string {
-  return value
-    .replace(/\\\\/g, '\\')
+function decodePdfEscapedString(raw: string): string {
+  const withOctal = raw.replace(/\\([0-7]{1,3})/g, (_, oct: string) => {
+    return String.fromCharCode(parseInt(oct, 8));
+  });
+
+  return withOctal
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\b/g, '\b')
+    .replace(/\\f/g, '\f')
     .replace(/\\\(/g, '(')
     .replace(/\\\)/g, ')')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\f/g, '\f');
+    .replace(/\\\\/g, '\\');
 }
 
-function extractPdfText(buffer: Buffer): string {
-  const content = buffer.toString('latin1');
+function decodeUtf16be(buf: Buffer): string {
+  const swapped = Buffer.alloc(buf.length);
+  for (let i = 0; i < buf.length - 1; i += 2) {
+    swapped[i] = buf[i + 1]!;
+    swapped[i + 1] = buf[i]!;
+  }
+  return swapped.toString('utf16le');
+}
+
+function decodePdfHexString(hex: string): string {
+  const cleanHex = hex.replace(/[\s\r\n]/g, '');
+  if (cleanHex.length === 0) return '';
+  const padded = cleanHex.length % 2 !== 0 ? cleanHex + '0' : cleanHex;
+  try {
+    const buf = Buffer.from(padded, 'hex');
+    if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+      return decodeUtf16be(buf.subarray(2));
+    }
+    if (buf.length >= 4 && buf[0] === 0 && buf[2] === 0 && buf[1] !== 0 && buf[3] !== 0) {
+      return decodeUtf16be(buf);
+    }
+    return buf.toString('latin1');
+  } catch {
+    return '';
+  }
+}
+
+function extractTextFromStreamContent(streamText: string): string[] {
   const textParts: string[] = [];
 
-  const singleTokenRegex = /\(([^()]*)\)\s*Tj/g;
-  for (const match of content.matchAll(singleTokenRegex)) {
-    const token = match[1];
-    if (token) {
-      textParts.push(decodePdfTextToken(token));
+  const singleTokenRegex = /(?:\(([^()]*)\)|<([0-9a-fA-F\s]+)>)\s*Tj/g;
+  for (const match of streamText.matchAll(singleTokenRegex)) {
+    if (match[1] !== undefined) {
+      textParts.push(decodePdfEscapedString(match[1]));
+    } else if (match[2] !== undefined) {
+      const hexDecoded = decodePdfHexString(match[2]);
+      if (hexDecoded) textParts.push(hexDecoded);
     }
   }
 
   const arrayTokenRegex = /\[(.*?)\]\s*TJ/gs;
-  for (const match of content.matchAll(arrayTokenRegex)) {
+  for (const match of streamText.matchAll(arrayTokenRegex)) {
     const body = match[1];
-    if (!body) {
-      continue;
-    }
+    if (!body) continue;
 
-    const innerTokens = [...body.matchAll(/\(([^()]*)\)/g)]
-      .map((tokenMatch) => tokenMatch[1])
-      .filter((token): token is string => typeof token === 'string');
-    if (innerTokens.length > 0) {
-      textParts.push(innerTokens.map((token) => decodePdfTextToken(token)).join(''));
+    const innerTokens = [...body.matchAll(/(?:\(([^()]*)\)|<([0-9a-fA-F\s]+)>)/g)];
+    let combined = '';
+    for (const tokenMatch of innerTokens) {
+      if (tokenMatch[1] !== undefined) {
+        combined += decodePdfEscapedString(tokenMatch[1]);
+      } else if (tokenMatch[2] !== undefined) {
+        combined += decodePdfHexString(tokenMatch[2]);
+      }
+    }
+    if (combined.trim().length > 0) {
+      textParts.push(combined);
     }
   }
 
-  const extracted = normalizeText(textParts.join('\n'));
-  if (!extracted) {
+  const quoteRegex = /(?:\(([^()]*)\)|<([0-9a-fA-F\s]+)>)\s*['"]/g;
+  for (const match of streamText.matchAll(quoteRegex)) {
+    if (match[1] !== undefined) {
+      textParts.push(decodePdfEscapedString(match[1]));
+    } else if (match[2] !== undefined) {
+      const hexDecoded = decodePdfHexString(match[2]);
+      if (hexDecoded) textParts.push(hexDecoded);
+    }
+  }
+
+  return textParts;
+}
+
+export function extractPdfTextFromBuffer(buffer: Buffer): string {
+  const textParts: string[] = [];
+  const streamKeyword = Buffer.from('stream');
+  const endStreamKeyword = Buffer.from('endstream');
+
+  let searchPos = 0;
+  let foundStreams = 0;
+
+  while (searchPos < buffer.length) {
+    const streamIndex = buffer.indexOf(streamKeyword, searchPos);
+    if (streamIndex === -1) break;
+
+    foundStreams += 1;
+    let dataStart = streamIndex + 6;
+    if (buffer[dataStart] === 0x0d && buffer[dataStart + 1] === 0x0a) {
+      dataStart += 2;
+    } else if (buffer[dataStart] === 0x0a || buffer[dataStart] === 0x0d) {
+      dataStart += 1;
+    }
+
+    const endStreamIndex = buffer.indexOf(endStreamKeyword, dataStart);
+    if (endStreamIndex === -1) break;
+
+    let dataEnd = endStreamIndex;
+    while (dataEnd > dataStart && (buffer[dataEnd - 1] === 0x0a || buffer[dataEnd - 1] === 0x0d)) {
+      dataEnd -= 1;
+    }
+
+    const streamSlice = buffer.subarray(dataStart, dataEnd);
+    const dictSlice = buffer.subarray(Math.max(0, streamIndex - 350), streamIndex).toString('latin1');
+
+    let streamStr = '';
+    if (/FlateDecode/i.test(dictSlice)) {
+      try {
+        streamStr = inflateSync(streamSlice).toString('latin1');
+      } catch {
+        try {
+          streamStr = inflateRawSync(streamSlice).toString('latin1');
+        } catch {
+          streamStr = streamSlice.toString('latin1');
+        }
+      }
+    } else {
+      streamStr = streamSlice.toString('latin1');
+    }
+
+    const extracted = extractTextFromStreamContent(streamStr);
+    if (extracted.length > 0) {
+      textParts.push(...extracted);
+    }
+
+    searchPos = endStreamIndex + 9;
+  }
+
+  if (textParts.length === 0) {
+    const fallbackContent = buffer.toString('latin1');
+    const fallbackExtracted = extractTextFromStreamContent(fallbackContent);
+    if (fallbackExtracted.length > 0) {
+      textParts.push(...fallbackExtracted);
+    }
+  }
+
+  const result = normalizeText(textParts.join('\n'));
+  if (!result) {
     throw new DocumentProcessingError(
       'No extractable text found in this PDF. Please upload text, markdown, csv, or json.',
     );
   }
 
-  return extracted;
+  return result;
 }
 
 export async function extractDocumentText(document: DocumentDocument): Promise<string> {
@@ -104,7 +218,7 @@ export async function extractDocumentText(document: DocumentDocument): Promise<s
   }
 
   if (document.mimeType === 'application/pdf') {
-    return extractPdfText(fileBuffer);
+    return extractPdfTextFromBuffer(fileBuffer);
   }
 
   throw new DocumentProcessingError('Unsupported mime type for processing');
@@ -116,11 +230,34 @@ function getChunkEnd(text: string, start: number, chunkSize: number): number {
     return text.length;
   }
 
-  const boundarySearchStart = Math.max(start + Math.floor(chunkSize * 0.6), tentativeEnd - 200);
+  const boundarySearchStart = Math.max(start + Math.floor(chunkSize * 0.5), tentativeEnd - 300);
 
+  // Priority 1: Paragraph boundary (\n\n)
   for (let index = tentativeEnd; index >= boundarySearchStart; index -= 1) {
-    const character = text[index];
-    if (character === '\n' || character === ' ') {
+    if (text[index] === '\n' && text[index - 1] === '\n') {
+      return index + 1;
+    }
+  }
+
+  // Priority 2: Sentence boundary (. or ? or ! followed by space or newline)
+  for (let index = tentativeEnd; index >= boundarySearchStart; index -= 1) {
+    const char = text[index];
+    const prevChar = text[index - 1];
+    if ((char === ' ' || char === '\n') && (prevChar === '.' || prevChar === '?' || prevChar === '!')) {
+      return index + 1;
+    }
+  }
+
+  // Priority 3: Line break (\n)
+  for (let index = tentativeEnd; index >= boundarySearchStart; index -= 1) {
+    if (text[index] === '\n') {
+      return index + 1;
+    }
+  }
+
+  // Priority 4: Word boundary (' ')
+  for (let index = tentativeEnd; index >= boundarySearchStart; index -= 1) {
+    if (text[index] === ' ') {
       return index;
     }
   }
