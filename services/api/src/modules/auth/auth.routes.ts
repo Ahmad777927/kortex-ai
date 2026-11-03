@@ -9,14 +9,14 @@ import {
 } from './auth.service.js';
 
 const signupSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  email: z.string().trim().email().max(200),
-  password: z.string().min(8).max(100),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80, 'Name cannot exceed 80 characters'),
+  email: z.string().trim().email('Please enter a valid email address').max(200),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(100, 'Password cannot exceed 100 characters'),
 });
 
 const loginSchema = z.object({
-  email: z.string().trim().email().max(200),
-  password: z.string().min(8).max(100),
+  email: z.string().trim().email('Please enter a valid email address').max(200),
+  password: z.string().min(1, 'Password is required').max(100),
 });
 
 function sanitizeUser(user: {
@@ -42,9 +42,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const parsed = signupSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]?.message ?? 'Invalid signup details';
       return reply.status(400).send({
         error: 'ValidationError',
-        message: parsed.error.flatten(),
+        message: firstIssue,
+        details: parsed.error.flatten(),
       });
     }
 
@@ -94,9 +96,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const parsed = loginSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]?.message ?? 'Invalid email or password';
       return reply.status(400).send({
         error: 'ValidationError',
-        message: parsed.error.flatten(),
+        message: firstIssue,
+        details: parsed.error.flatten(),
       });
     }
 

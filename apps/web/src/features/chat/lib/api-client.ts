@@ -89,10 +89,28 @@ function getErrorMessage(payload: unknown, fallback = 'Request failed'): string 
   }
 
   if (payload && typeof payload === 'object') {
-    const objectPayload = payload as { message?: unknown; error?: unknown };
+    const objectPayload = payload as {
+      message?: unknown;
+      error?: unknown;
+      details?: { formErrors?: string[]; fieldErrors?: Record<string, string[]> };
+    };
 
     if (typeof objectPayload.message === 'string' && objectPayload.message.trim().length > 0) {
       return objectPayload.message;
+    }
+
+    const targetObj =
+      typeof objectPayload.message === 'object' && objectPayload.message !== null
+        ? (objectPayload.message as { formErrors?: string[]; fieldErrors?: Record<string, string[]> })
+        : objectPayload.details;
+
+    if (targetObj && typeof targetObj === 'object') {
+      const fieldErrors = Object.values(targetObj.fieldErrors ?? {}).flat();
+      const formErrors = targetObj.formErrors ?? [];
+      const allErrors = [...formErrors, ...fieldErrors].filter(Boolean);
+      if (allErrors.length > 0) {
+        return allErrors.join('. ');
+      }
     }
 
     if (typeof objectPayload.error === 'string' && objectPayload.error.trim().length > 0) {

@@ -1,11 +1,11 @@
 'use client';
 
-import React, { FormEvent } from 'react';
+import React, { FormEvent, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Card } from '../../../components/ui/card';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
-import { SparklesIcon } from '../../../components/chat/icons';
+import { SparklesIcon, EyeIcon, EyeOffIcon } from '../../../components/chat/icons';
 import { UniqueAiLogo } from '../../../components/chat/ai-logo';
 import { cn } from '../../../lib/utils';
 
@@ -22,6 +22,7 @@ interface AuthCardProps {
   setPassword: (password: string) => void;
   isAuthSubmitting: boolean;
   error: string | null;
+  onClearError?: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
@@ -36,8 +37,17 @@ export function AuthCard({
   setPassword,
   isAuthSubmitting,
   error,
+  onClearError,
   onSubmit,
 }: AuthCardProps) {
+  const [showPassword, setShowPassword] = useState(false);
+
+  function handleTabChange(mode: AuthMode) {
+    setAuthMode(mode);
+    onClearError?.();
+    setShowPassword(false);
+  }
+
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg px-4 py-8 text-text">
       {/* Ambient Dribbble Backdrop Glows */}
@@ -67,7 +77,7 @@ export function AuthCard({
         <div className="mt-6 grid grid-cols-2 rounded-2xl border border-white/[0.08] bg-surface-2/70 p-1">
           <button
             type="button"
-            onClick={() => setAuthMode('login')}
+            onClick={() => handleTabChange('login')}
             className={cn(
               'h-9 rounded-xl text-xs font-semibold transition-all duration-200',
               authMode === 'login'
@@ -79,7 +89,7 @@ export function AuthCard({
           </button>
           <button
             type="button"
-            onClick={() => setAuthMode('signup')}
+            onClick={() => handleTabChange('signup')}
             className={cn(
               'h-9 rounded-xl text-xs font-semibold transition-all duration-200',
               authMode === 'signup'
@@ -94,7 +104,7 @@ export function AuthCard({
         <form className="mt-6 space-y-3.5" onSubmit={onSubmit}>
           {authMode === 'signup' ? (
             <div>
-              <label className="text-[11px] font-medium text-slate-300">Name</label>
+              <label className="text-[11px] font-medium text-slate-300">Full Name</label>
               <Input
                 className="mt-1 h-10 rounded-xl border-white/[0.08] bg-surface-2/60 text-xs text-white placeholder:text-text-muted/60 focus-visible:border-indigo-500"
                 placeholder="Ahmad Arshad"
@@ -118,15 +128,30 @@ export function AuthCard({
           </div>
 
           <div>
-            <label className="text-[11px] font-medium text-slate-300">Password</label>
-            <Input
-              className="mt-1 h-10 rounded-xl border-white/[0.08] bg-surface-2/60 text-xs text-white placeholder:text-text-muted/60 focus-visible:border-indigo-500"
-              type="password"
-              placeholder="••••••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-            />
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-medium text-slate-300">Password</label>
+              {authMode === 'signup' ? (
+                <span className="text-[10px] text-text-muted">Min. 8 characters</span>
+              ) : null}
+            </div>
+            <div className="relative mt-1">
+              <Input
+                className="h-10 rounded-xl border-white/[0.08] bg-surface-2/60 pr-10 text-xs text-white placeholder:text-text-muted/60 focus-visible:border-indigo-500"
+                type={showPassword ? 'text' : 'password'}
+                placeholder={authMode === 'signup' ? 'At least 8 characters' : 'Enter your password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {error ? (

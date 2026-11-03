@@ -603,6 +603,8 @@ export function ChatWorkspace() {
         return;
       }
 
+      let isAuthenticated = false;
+
       try {
         const parsedUser = JSON.parse(storedUser) as ApiUser;
         setToken(storedToken);
@@ -611,20 +613,29 @@ export function ChatWorkspace() {
         const meResponse = await authApi.me(storedToken);
         setUser(meResponse.user);
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(meResponse.user));
-
-        await Promise.all([
-          loadModels(storedToken),
-          loadChats(storedToken),
-          loadDocuments(storedToken),
-        ]);
+        isAuthenticated = true;
       } catch {
         localStorage.removeItem(TOKEN_STORAGE_KEY);
         localStorage.removeItem(USER_STORAGE_KEY);
         setToken(null);
         setUser(null);
-      } finally {
         setIsBootstrapping(false);
+        return;
       }
+
+      if (isAuthenticated) {
+        try {
+          await Promise.allSettled([
+            loadModels(storedToken),
+            loadChats(storedToken),
+            loadDocuments(storedToken),
+          ]);
+        } catch {
+          // ignore workspace preload errors
+        }
+      }
+
+      setIsBootstrapping(false);
     }
 
     void bootstrap();
@@ -636,39 +647,53 @@ export function ChatWorkspace() {
     setIsAuthSubmitting(true);
 
     try {
+      let authResponse;
+
       if (authMode === 'signup') {
-        if (!name.trim()) {
-          throw new Error('Name is required');
+        const cleanName = name.trim();
+        const cleanEmail = email.trim();
+
+        if (!cleanName || cleanName.length < 2) {
+          throw new Error('Name must be at least 2 characters');
+        }
+        if (!cleanEmail) {
+          throw new Error('Email is required');
+        }
+        if (!password || password.length < 8) {
+          throw new Error('Password must be at least 8 characters');
         }
 
-        const response = await authApi.signup({
-          name: name.trim(),
-          email: email.trim(),
+        authResponse = await authApi.signup({
+          name: cleanName,
+          email: cleanEmail,
           password,
         });
-
-        handleAuthSuccess(response);
-        await Promise.all([
-          loadModels(response.token),
-          loadChats(response.token),
-          loadDocuments(response.token),
-        ]);
       } else {
-        const response = await authApi.login({
-          email: email.trim(),
+        const cleanEmail = email.trim();
+
+        if (!cleanEmail) {
+          throw new Error('Email is required');
+        }
+        if (!password) {
+          throw new Error('Password is required');
+        }
+
+        authResponse = await authApi.login({
+          email: cleanEmail,
           password,
         });
-
-        handleAuthSuccess(response);
-        await Promise.all([
-          loadModels(response.token),
-          loadChats(response.token),
-          loadDocuments(response.token),
-        ]);
       }
 
+      handleAuthSuccess(authResponse);
       setName('');
       setPassword('');
+
+      // Preload workspace resources without blocking or reverting auth on failure
+      void Promise.allSettled([
+        loadModels(authResponse.token),
+        loadChats(authResponse.token),
+        loadDocuments(authResponse.token),
+      ]);
     } catch (authError) {
       const errorMessage = getErrorMessage(authError, 'Authentication failed');
       setError(errorMessage);
@@ -1425,6 +1450,7 @@ export function ChatWorkspace() {
         setPassword={setPassword}
         isAuthSubmitting={isAuthSubmitting}
         error={error}
+        onClearError={() => setError(null)}
         onSubmit={handleAuthSubmit}
       />
     );
